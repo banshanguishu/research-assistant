@@ -3,11 +3,13 @@ import {
   hasCompleteModelConfig,
   loadModelConfig,
 } from "./llm/modelConfig.js";
+import { buildSystemPrompt } from "./prompts/systemPrompt.js";
 
 function main(): void {
   const modelConfig = loadModelConfig();
 
   console.log("Research Assistant skeleton initialized.");
+  console.log(`System prompt loaded: ${buildSystemPrompt().length} characters.`);
 
   if (hasCompleteModelConfig(modelConfig)) {
     console.log("Model configuration status: ready.");
