@@ -18,3 +18,5 @@ export interface ToolDefinition<TInput = unknown> {
     context?: ToolExecutionContext,
   ) => Promise<ToolExecutionResult>;
 }
+
+export type RegisteredToolDefinition = ToolDefinition<any>;

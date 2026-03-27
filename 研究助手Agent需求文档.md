@@ -780,7 +780,23 @@ export interface ToolDefinition {
 
 - 形成可持续循环的上下文
 
-### 步骤 6：实现第一个占位工具 `search_web`
+### 步骤 6：实现 LLM Tool Schema 适配层
+
+目标：
+
+- 让模型能正确理解有哪些工具可用，以及每个工具的参数结构
+
+需要实现：
+
+- `toolSchema.ts`
+- 将本地工具定义转换为 LLM 可识别的 `tools` 结构
+- 至少包含 `search_web` 和 `fetch_page_content` 的 schema
+
+解决的问题：
+
+- 打通“本地工具定义”和“LLM 工具调用协议”之间的适配层
+
+### 步骤 7：实现第一个占位工具 `search_web`
 
 目标：
 
@@ -788,7 +804,6 @@ export interface ToolDefinition {
 
 需要实现：
 
-- 工具 schema
 - 工具注册
 - 工具执行函数
 
@@ -800,7 +815,7 @@ export interface ToolDefinition {
 
 - 先验证工具调用协议是否正确
 
-### 步骤 7：实现工具调度
+### 步骤 8：实现工具调度
 
 目标：
 
@@ -817,7 +832,7 @@ export interface ToolDefinition {
 
 - 打通 Action -> Observation 闭环
 
-### 步骤 8：实现主循环 `runAgent`
+### 步骤 9：实现主循环 `runAgent`
 
 目标：
 
@@ -833,7 +848,7 @@ export interface ToolDefinition {
 
 - 打通完整 Agent Loop
 
-### 步骤 9：实现最终报告输出
+### 步骤 10：实现最终报告输出
 
 目标：
 
@@ -849,7 +864,7 @@ export interface ToolDefinition {
 
 - 形成可提交成果
 
-### 步骤 10：替换为真实搜索 API
+### 步骤 11：替换为真实搜索 API
 
 目标：
 
@@ -864,7 +879,7 @@ export interface ToolDefinition {
 
 - 从“流程跑通”升级到“结果可用”
 
-### 步骤 11：加入最小反思逻辑
+### 步骤 12：加入最小反思逻辑
 
 目标：
 
@@ -1059,12 +1074,13 @@ MVP 达标标准：
 3. 实现 LLM 客户端
 4. 实现 Prompt
 5. 实现消息管理
-6. 实现 mock 搜索工具
-7. 实现工具注册与调度
-8. 实现主循环
-9. 实现报告输出
-10. 用真实搜索 API 替换 mock
-11. 增加反思、重试和消息裁剪
+6. 实现 LLM Tool Schema 适配层
+7. 实现 mock 搜索工具
+8. 实现工具注册与调度
+9. 实现主循环
+10. 实现报告输出
+11. 用真实搜索 API 替换 mock
+12. 增加反思、重试和消息裁剪
 
 这个顺序的原因是：
 
