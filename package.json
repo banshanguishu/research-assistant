@@ -16,6 +16,7 @@
     "typescript": "^5.8.0"
   },
   "dependencies": {
+    "@tavily/core": "^0.7.2",
     "openai": "^6.33.0"
   }
 }

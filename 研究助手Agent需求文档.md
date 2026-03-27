@@ -509,7 +509,7 @@ export interface ToolDefinition {
 说明：
 
 - 第一阶段可先用占位实现
-- 后续再接入 Serper、Tavily 或其他搜索 API
+- 后续再接入 Tavily 或其他搜索 API
 
 ## 11.9 `src/tools/fetchPageContent.ts`
 
