@@ -1,106 +1,80 @@
+import OpenAI from "openai";
+import type {
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from "openai/resources/chat/completions";
 import { assertModelConfig, type ResolvedModelConfig } from "./modelConfig.js";
 
-export interface ChatMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string;
-  name?: string;
-  tool_call_id?: string;
-}
-
-export interface ToolDefinition {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
+export type ChatMessage = ChatCompletionMessageParam;
+export type ToolDefinition = ChatCompletionTool;
 
 export interface CallModelOptions {
   messages: ChatMessage[];
   tools?: ToolDefinition[];
-  toolChoice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  toolChoice?:
+    | "auto"
+    | "none"
+    | "required"
+    | { type: "function"; function: { name: string } };
   temperature?: number;
 }
 
-export interface ChatCompletionResponse {
-  id: string;
-  model: string;
-  choices: Array<{
-    index: number;
-    finish_reason: string | null;
-    message: {
-      role: "assistant";
-      content: string | null;
-      tool_calls?: Array<{
-        id: string;
-        type: "function";
-        function: {
-          name: string;
-          arguments: string;
-        };
-      }>;
-    };
-  }>;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
+export type ChatCompletionResponse =
+  OpenAI.Chat.Completions.ChatCompletion;
+
+function createOpenAiClient(config: ResolvedModelConfig): OpenAI {
+  return new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+  });
+}
+
+function buildChatCompletionRequest(
+  config: ResolvedModelConfig,
+  options: CallModelOptions,
+): ChatCompletionCreateParamsNonStreaming {
+  return {
+    model: config.model,
+    messages: options.messages,
+    tools: options.tools,
+    tool_choice: options.toolChoice,
+    temperature: options.temperature,
   };
 }
 
-function buildChatCompletionsUrl(baseURL: string): string {
-  return `${baseURL.replace(/\/+$/, "")}/chat/completions`;
-}
-
-async function parseErrorResponse(response: Response): Promise<string> {
-  const fallbackMessage = `LLM request failed with status ${response.status}.`;
-
-  try {
-    const text = await response.text();
-    return text.trim().length > 0 ? text : fallbackMessage;
-  } catch {
-    return fallbackMessage;
-  }
-}
-
-async function postChatCompletion(
+async function requestChatCompletion(
+  client: OpenAI,
   config: ResolvedModelConfig,
   options: CallModelOptions,
 ): Promise<ChatCompletionResponse> {
-  const response = await fetch(buildChatCompletionsUrl(config.baseURL), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: options.messages,
-      tools: options.tools,
-      tool_choice: options.toolChoice,
-      temperature: options.temperature,
-    }),
-  });
+  try {
+    return await client.chat.completions.create(
+      buildChatCompletionRequest(config, options),
+    );
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`LLM request failed: ${error.message}`);
+    }
 
-  if (!response.ok) {
-    const errorMessage = await parseErrorResponse(response);
-    throw new Error(errorMessage);
+    throw new Error("LLM request failed with an unknown error.");
   }
-
-  return (await response.json()) as ChatCompletionResponse;
 }
 
 export async function callModel(
   options: CallModelOptions,
 ): Promise<ChatCompletionResponse> {
   const config = assertModelConfig();
-  return postChatCompletion(config, options);
+  const client = createOpenAiClient(config);
+
+  return requestChatCompletion(client, config, options);
 }
 
 export function createLlmClient(config: ResolvedModelConfig = assertModelConfig()) {
+  const client = createOpenAiClient(config);
+
   return {
     callModel: (options: CallModelOptions): Promise<ChatCompletionResponse> =>
-      postChatCompletion(config, options),
+      requestChatCompletion(client, config, options),
   };
 }
