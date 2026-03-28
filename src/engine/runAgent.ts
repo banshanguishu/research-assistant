@@ -17,6 +17,7 @@ export interface RunAgentOptions {
 }
 
 export interface RunAgentResult {
+  topic: string;
   finalAnswer: string;
   messages: MessageList;
   iterations: number;
@@ -100,6 +101,7 @@ export async function runAgent(
   }
 
   return {
+    topic: options.topic,
     finalAnswer,
     messages,
     iterations,

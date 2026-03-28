@@ -5,6 +5,8 @@ import {
 } from "./llm/modelConfig.js";
 import { runAgent } from "./engine/runAgent.js";
 import { buildSystemPrompt } from "./prompts/systemPrompt.js";
+import { buildReportMarkdown } from "./report/buildReport.js";
+import { saveReport } from "./report/saveReport.js";
 
 async function main(): Promise<void> {
   const modelConfig = loadModelConfig();
@@ -30,9 +32,12 @@ async function main(): Promise<void> {
   }
 
   const result = await runAgent({ topic });
+  const markdown = buildReportMarkdown(result);
+  const reportPath = await saveReport(topic, markdown);
   console.log(`Iterations used: ${result.iterations}`);
   console.log("Final answer:");
   console.log(result.finalAnswer);
+  console.log(`Report saved to: ${reportPath}`);
 }
 
 void main();
