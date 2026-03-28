@@ -1,3 +1,4 @@
+import type { ChatCompletionMessageToolCall } from "openai/resources/chat/completions/completions";
 import type { ChatMessage } from "../llm/client.js";
 
 export type MessageList = ChatMessage[];
@@ -20,13 +21,15 @@ export function createInitialMessages(
 
 export function appendAssistantMessage(
   messages: MessageList,
-  content: string,
+  content: string | null,
+  toolCalls?: ChatCompletionMessageToolCall[],
 ): MessageList {
   return [
     ...messages,
     {
       role: "assistant",
       content,
+      tool_calls: toolCalls,
     },
   ];
 }
