@@ -48,3 +48,16 @@ export function appendToolMessage(
     },
   ];
 }
+
+export function appendUserMessage(
+  messages: MessageList,
+  content: string,
+): MessageList {
+  return [
+    ...messages,
+    {
+      role: "user",
+      content,
+    },
+  ];
+}

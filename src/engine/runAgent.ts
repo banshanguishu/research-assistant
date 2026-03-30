@@ -3,6 +3,7 @@ import { toLlmToolSchemas } from "../llm/toolSchema.js";
 import {
   appendAssistantMessage,
   appendToolMessage,
+  appendUserMessage,
   createInitialMessages,
   type MessageList,
 } from "../memory/messageManager.js";
@@ -27,6 +28,7 @@ export interface RunAgentResult {
 }
 
 const DEFAULT_MAX_ITERATIONS = 6;
+const MAX_REFLECTION_ROUNDS = 1;
 
 function formatToolResult(result: ToolExecutionResult): string {
   return JSON.stringify(result, null, 2);
@@ -46,6 +48,38 @@ function getAssistantContent(content: string | null): string {
   return content ?? "";
 }
 
+function hasSuccessfulToolResult(
+  toolResults: ToolExecutionResult[],
+  toolName: string,
+): boolean {
+  return toolResults.some(
+    (toolResult) => toolResult.success && toolResult.toolName === toolName,
+  );
+}
+
+function buildReflectionPrompt(toolResults: ToolExecutionResult[]): string {
+  const hasSearchResults = hasSuccessfulToolResult(toolResults, "search_web");
+  const hasFetchedContent = hasSuccessfulToolResult(
+    toolResults,
+    "fetch_page_content",
+  );
+
+  if (hasSearchResults && !hasFetchedContent) {
+    return [
+      "请先进行一次自检。",
+      "你已经完成了搜索，但尚未读取任何关键正文页面。",
+      "如果你认为当前证据不足以支撑正式研究结论，请优先调用 fetch_page_content 读取 1 到 3 个高价值来源后再继续分析。",
+      "如果你确认仅凭现有证据也足够，请明确说明证据边界和不确定性，再给出最终回答。",
+    ].join("");
+  }
+
+  return [
+    "请先进行一次自检。",
+    "检查当前结论是否存在证据不足、来源不清或关键论点缺少支撑的问题。",
+    "如果存在，请继续调用合适的工具补充信息；如果不存在，请给出最终回答。",
+  ].join("");
+}
+
 export async function runAgent(
   options: RunAgentOptions,
 ): Promise<RunAgentResult> {
@@ -58,6 +92,7 @@ export async function runAgent(
   const toolResults: ToolExecutionResult[] = [];
   let iterations = 0;
   let finalAnswer = "";
+  let reflectionRoundsUsed = 0;
 
   while (iterations < maxIterations) {
     iterations += 1;
@@ -114,6 +149,19 @@ export async function runAgent(
     }
 
     if (toolCalls.length === 0) {
+      const shouldReflect =
+        reflectionRoundsUsed < MAX_REFLECTION_ROUNDS &&
+        assistantContent.trim().length > 0;
+
+      if (shouldReflect) {
+        reflectionRoundsUsed += 1;
+        const reflectionPrompt = buildReflectionPrompt(toolResults);
+        logger.step(`第 ${iterations} 轮触发自检，要求模型确认信息是否充分。`);
+        logger.info(`自检提示: ${summarizeText(reflectionPrompt)}`);
+        messages = appendUserMessage(messages, reflectionPrompt);
+        continue;
+      }
+
       finalAnswer = assistantContent;
       logger.step(`第 ${iterations} 轮结束，模型已给出最终回答。`);
       break;
