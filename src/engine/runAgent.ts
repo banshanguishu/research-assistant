@@ -8,6 +8,7 @@ import {
   type MessageList,
 } from "../memory/messageManager.js";
 import { buildSystemPrompt } from "../prompts/systemPrompt.js";
+import { evaluateReflectionNeed } from "./stopConditions.js";
 import { dispatchToolCalls } from "../tools/dispatchToolCall.js";
 import { createDefaultToolRegistry } from "../tools/registry.js";
 import type { ToolExecutionResult } from "../tools/types.js";
@@ -17,6 +18,7 @@ export interface RunAgentOptions {
   topic: string;
   maxIterations?: number;
   verbose?: boolean;
+  logFilePath?: string | null;
 }
 
 export interface RunAgentResult {
@@ -28,7 +30,7 @@ export interface RunAgentResult {
 }
 
 const DEFAULT_MAX_ITERATIONS = 6;
-const MAX_REFLECTION_ROUNDS = 1;
+const MAX_REFLECTION_ROUNDS = 2;
 
 function formatToolResult(result: ToolExecutionResult): string {
   return JSON.stringify(result, null, 2);
@@ -48,42 +50,28 @@ function getAssistantContent(content: string | null): string {
   return content ?? "";
 }
 
-function hasSuccessfulToolResult(
-  toolResults: ToolExecutionResult[],
-  toolName: string,
-): boolean {
-  return toolResults.some(
-    (toolResult) => toolResult.success && toolResult.toolName === toolName,
-  );
-}
-
-function buildReflectionPrompt(toolResults: ToolExecutionResult[]): string {
-  const hasSearchResults = hasSuccessfulToolResult(toolResults, "search_web");
-  const hasFetchedContent = hasSuccessfulToolResult(
-    toolResults,
-    "fetch_page_content",
-  );
-
-  if (hasSearchResults && !hasFetchedContent) {
-    return [
-      "请先进行一次自检。",
-      "你已经完成了搜索，但尚未读取任何关键正文页面。",
-      "如果你认为当前证据不足以支撑正式研究结论，请优先调用 fetch_page_content 读取 1 到 3 个高价值来源后再继续分析。",
-      "如果你确认仅凭现有证据也足够，请明确说明证据边界和不确定性，再给出最终回答。",
-    ].join("");
-  }
-
+function buildReflectionPrompt(
+  reasons: string[],
+  successfulSearchCount: number,
+  successfulFetchCount: number,
+  failedToolCount: number,
+): string {
   return [
     "请先进行一次自检。",
-    "检查当前结论是否存在证据不足、来源不清或关键论点缺少支撑的问题。",
-    "如果存在，请继续调用合适的工具补充信息；如果不存在，请给出最终回答。",
-  ].join("");
+    `当前状态：search_web 成功 ${successfulSearchCount} 次，fetch_page_content 成功 ${successfulFetchCount} 次，失败工具调用 ${failedToolCount} 次。`,
+    "当前发现的潜在问题：",
+    ...reasons.map((reason, index) => `${index + 1}. ${reason}`),
+    "如果这些问题会影响正式研究结论，请继续调用合适的工具补充信息；如果不会影响，请明确说明证据边界和不确定性，然后给出最终回答。",
+  ].join("\n");
 }
 
 export async function runAgent(
   options: RunAgentOptions,
 ): Promise<RunAgentResult> {
-  const logger = createLogger(options.verbose ?? true);
+  const logger = createLogger({
+    enabled: options.verbose ?? true,
+    filePath: options.logFilePath,
+  });
   const llmClient = createLlmClient();
   const registry = createDefaultToolRegistry();
   const tools = toLlmToolSchemas(registry.getAllTools());
@@ -93,6 +81,8 @@ export async function runAgent(
   let iterations = 0;
   let finalAnswer = "";
   let reflectionRoundsUsed = 0;
+
+  logger.step(`开始运行研究任务，主题: ${options.topic}`);
 
   while (iterations < maxIterations) {
     iterations += 1;
@@ -149,14 +139,28 @@ export async function runAgent(
     }
 
     if (toolCalls.length === 0) {
+      const reflectionDecision = evaluateReflectionNeed(
+        toolResults,
+        assistantContent,
+      );
       const shouldReflect =
         reflectionRoundsUsed < MAX_REFLECTION_ROUNDS &&
-        assistantContent.trim().length > 0;
+        reflectionDecision.shouldReflect;
 
       if (shouldReflect) {
         reflectionRoundsUsed += 1;
-        const reflectionPrompt = buildReflectionPrompt(toolResults);
+        const reflectionPrompt = buildReflectionPrompt(
+          reflectionDecision.reasons,
+          reflectionDecision.successfulSearchCount,
+          reflectionDecision.successfulFetchCount,
+          reflectionDecision.failedToolCount,
+        );
         logger.step(`第 ${iterations} 轮触发自检，要求模型确认信息是否充分。`);
+        logger.info(
+          `触发原因: ${reflectionDecision.reasons
+            .map((reason) => summarizeText(reason, 80))
+            .join(" | ")}`,
+        );
         logger.info(`自检提示: ${summarizeText(reflectionPrompt)}`);
         messages = appendUserMessage(messages, reflectionPrompt);
         continue;
