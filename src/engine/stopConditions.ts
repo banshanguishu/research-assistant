@@ -13,13 +13,7 @@ export interface ToolUsageSummary {
   byTool: Record<string, ToolUsageStat>;
 }
 
-export interface ReflectionDecision {
-  shouldReflect: boolean;
-  reasons: string[];
-  toolUsage: ToolUsageSummary;
-}
-
-function buildToolUsageSummary(
+export function summarizeToolUsage(
   toolResults: ToolExecutionResult[],
 ): ToolUsageSummary {
   const byTool: Record<string, ToolUsageStat> = {};
@@ -51,35 +45,5 @@ function buildToolUsageSummary(
     successfulCalls,
     failedCalls,
     byTool,
-  };
-}
-
-export function evaluateReflectionNeed(
-  toolResults: ToolExecutionResult[],
-  assistantContent: string,
-): ReflectionDecision {
-  const toolUsage = buildToolUsageSummary(toolResults);
-  const reasons: string[] = [];
-
-  if (toolUsage.totalCalls > 0) {
-    reasons.push("当前已经积累了工具 observation，请先基于这些事实进行一次自检。");
-  }
-
-  if (toolUsage.failedCalls > 0) {
-    reasons.push("之前存在失败的工具调用，请评估这些缺口是否影响正式研究结论。");
-  }
-
-  if (toolUsage.totalCalls > 0 && assistantContent.trim().length < 120) {
-    reasons.push("当前回答较短，请确认是否已经覆盖足够证据后再结束。");
-  }
-
-  if (toolUsage.totalCalls > 0 && assistantContent.trim().length === 0) {
-    reasons.push("模型当前没有给出可见的结论文本。");
-  }
-
-  return {
-    shouldReflect: toolUsage.totalCalls > 0 && reasons.length > 0,
-    reasons,
-    toolUsage,
   };
 }

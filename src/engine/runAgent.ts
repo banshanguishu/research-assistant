@@ -8,10 +8,7 @@ import {
   type MessageList,
 } from "../memory/messageManager.js";
 import { buildSystemPrompt } from "../prompts/systemPrompt.js";
-import {
-  evaluateReflectionNeed,
-  type ToolUsageSummary,
-} from "./stopConditions.js";
+import { summarizeToolUsage, type ToolUsageSummary } from "./stopConditions.js";
 import { dispatchToolCalls } from "../tools/dispatchToolCall.js";
 import { createDefaultToolRegistry } from "../tools/registry.js";
 import type { ToolExecutionResult } from "../tools/types.js";
@@ -33,7 +30,9 @@ export interface RunAgentResult {
 }
 
 const DEFAULT_MAX_ITERATIONS = 6;
-const MAX_REFLECTION_ROUNDS = 2;
+const MAX_REFLECTION_ROUNDS = 3;
+const REFLECTION_PASS = "PASS";
+const REFLECTION_FAIL = "FAIL";
 
 function formatToolResult(result: ToolExecutionResult): string {
   return JSON.stringify(result, null, 2);
@@ -54,7 +53,6 @@ function getAssistantContent(content: string | null): string {
 }
 
 function buildReflectionPrompt(
-  reasons: string[],
   toolUsage: ToolUsageSummary,
 ): string {
   const toolSummaryLines = Object.entries(toolUsage.byTool).map(
@@ -69,11 +67,57 @@ function buildReflectionPrompt(
     `- 工具成功次数: ${toolUsage.successfulCalls}`,
     `- 工具失败次数: ${toolUsage.failedCalls}`,
     ...(toolSummaryLines.length > 0 ? toolSummaryLines : ["- 暂无工具调用记录"]),
-    "以下是需要你重点检查的点：",
-    ...reasons.map((reason, index) => `${index + 1}. ${reason}`),
     "请结合以上统计信息，以及你已经看到的全部 tool observation，自主判断当前证据是否足够支撑正式研究结论。",
-    "如果证据不足，请继续调用合适的工具；如果证据已经足够，请明确说明证据边界和不确定性，然后给出最终回答。",
-    "不要只重复自检过程本身，而要明确做出下一步决策。",
+    `如果你判断证据已经足够，请严格按以下格式回复：`,
+    `REFLECTION_STATUS: ${REFLECTION_PASS}`,
+    "FINAL_ANSWER:",
+    "<在这里给出最终回答，需明确证据边界和不确定性>",
+    `如果你判断证据还不足，请优先直接调用合适的工具继续收集信息。`,
+    `如果你暂时不调用工具，也必须严格按以下格式回复：`,
+    `REFLECTION_STATUS: ${REFLECTION_FAIL}`,
+    "REASON: <反思未通过的原因>",
+    "NEXT_ACTION: <下一步计划补充什么信息，或准备调用什么工具>",
+    "不要只重复自检过程本身，必须明确给出 PASS 或 FAIL。",
+  ].join("\n");
+}
+
+interface ReflectionResult {
+  status: typeof REFLECTION_PASS | typeof REFLECTION_FAIL | null;
+  finalAnswer: string;
+  reason: string;
+  nextAction: string;
+}
+
+function parseReflectionResult(content: string): ReflectionResult {
+  const normalizedContent = content.trim();
+  const statusMatch = normalizedContent.match(
+    /REFLECTION_STATUS:\s*(PASS|FAIL)/i,
+  );
+  const reasonMatch = normalizedContent.match(/REASON:\s*([\s\S]*?)(?:\n[A-Z_]+:|$)/i);
+  const nextActionMatch = normalizedContent.match(
+    /NEXT_ACTION:\s*([\s\S]*?)(?:\n[A-Z_]+:|$)/i,
+  );
+  const finalAnswerMatch = normalizedContent.match(
+    /FINAL_ANSWER:\s*([\s\S]*)$/i,
+  );
+
+  return {
+    status: (statusMatch?.[1]?.toUpperCase() as ReflectionResult["status"]) ?? null,
+    finalAnswer: finalAnswerMatch?.[1]?.trim() ?? "",
+    reason: reasonMatch?.[1]?.trim() ?? "",
+    nextAction: nextActionMatch?.[1]?.trim() ?? "",
+  };
+}
+
+function buildRetryAfterFailedReflectionPrompt(
+  reason: string,
+  nextAction: string,
+): string {
+  return [
+    "你刚才的反思结论是 FAIL，请继续推进研究。",
+    `当前缺口: ${reason || "未明确说明"}`,
+    `建议动作: ${nextAction || "请根据现有 observation 自主决定下一步工具调用"}`,
+    "请不要直接输出最终结论，优先调用合适工具补充信息。",
   ].join("\n");
 }
 
@@ -93,6 +137,7 @@ export async function runAgent(
   let iterations = 0;
   let finalAnswer = "";
   let reflectionRoundsUsed = 0;
+  let awaitingReflectionDecision = false;
 
   logger.step(`开始运行研究任务，主题: ${options.topic}`);
 
@@ -126,6 +171,11 @@ export async function runAgent(
     );
 
     if (toolCalls.length > 0) {
+      if (awaitingReflectionDecision) {
+        logger.step(`第 ${iterations} 轮反思未通过，模型决定继续调用工具补充信息。`);
+        awaitingReflectionDecision = false;
+      }
+
       logger.info(`第 ${iterations} 轮模型决定调用 ${toolCalls.length} 个工具。`);
 
       for (const toolCall of toolCalls) {
@@ -151,37 +201,77 @@ export async function runAgent(
     }
 
     if (toolCalls.length === 0) {
-      const reflectionDecision = evaluateReflectionNeed(
-        toolResults,
-        assistantContent,
-      );
-      const shouldReflect =
-        reflectionRoundsUsed < MAX_REFLECTION_ROUNDS &&
-        reflectionDecision.shouldReflect;
+      if (awaitingReflectionDecision) {
+        const reflectionResult = parseReflectionResult(assistantContent);
 
-      if (shouldReflect) {
+        if (reflectionResult.status === REFLECTION_PASS) {
+          finalAnswer = reflectionResult.finalAnswer || assistantContent;
+          logger.step(`第 ${iterations} 轮反思通过，模型确认可以结束。`);
+          if (reflectionResult.finalAnswer) {
+            logger.info(
+              `最终回答摘要: ${summarizeText(reflectionResult.finalAnswer)}`,
+            );
+          }
+          break;
+        }
+
+        if (reflectionResult.status === REFLECTION_FAIL) {
+          logger.step(`第 ${iterations} 轮反思未通过，模型判断仍需补充信息。`);
+          logger.info(
+            `反思原因: ${summarizeText(reflectionResult.reason || "未明确说明")}`,
+          );
+          logger.info(
+            `下一步计划: ${summarizeText(
+              reflectionResult.nextAction || "未明确说明",
+            )}`,
+          );
+          awaitingReflectionDecision = false;
+          messages = appendUserMessage(
+            messages,
+            buildRetryAfterFailedReflectionPrompt(
+              reflectionResult.reason,
+              reflectionResult.nextAction,
+            ),
+          );
+          continue;
+        }
+
+        if (reflectionRoundsUsed >= MAX_REFLECTION_ROUNDS) {
+          logger.warn("反思结果未按约定格式返回，且已达到最大反思轮次，结束当前任务。");
+          finalAnswer = assistantContent;
+          break;
+        }
+
         reflectionRoundsUsed += 1;
-        const reflectionPrompt = buildReflectionPrompt(
-          reflectionDecision.reasons,
-          reflectionDecision.toolUsage,
+        logger.warn("反思结果未按约定格式返回，要求模型重新给出 PASS 或 FAIL。");
+        messages = appendUserMessage(
+          messages,
+          [
+            "你的上一条反思结果未按要求返回。",
+            `请严格使用以下格式之一：REFLECTION_STATUS: ${REFLECTION_PASS} 或 REFLECTION_STATUS: ${REFLECTION_FAIL}。`,
+            "如果 PASS，请补充 FINAL_ANSWER；如果 FAIL，请补充 REASON 和 NEXT_ACTION。",
+          ].join("\n"),
         );
-        logger.step(`第 ${iterations} 轮触发自检，要求模型确认信息是否充分。`);
-        logger.info(
-          `触发原因: ${reflectionDecision.reasons
-            .map((reason) => summarizeText(reason, 80))
-            .join(" | ")}`,
-        );
-        logger.info(
-          `工具统计: 总 ${reflectionDecision.toolUsage.totalCalls} 次 | 成功 ${reflectionDecision.toolUsage.successfulCalls} 次 | 失败 ${reflectionDecision.toolUsage.failedCalls} 次`,
-        );
-        logger.info(`自检提示: ${summarizeText(reflectionPrompt)}`);
-        messages = appendUserMessage(messages, reflectionPrompt);
         continue;
       }
 
-      finalAnswer = assistantContent;
-      logger.step(`第 ${iterations} 轮结束，模型已给出最终回答。`);
-      break;
+      if (reflectionRoundsUsed >= MAX_REFLECTION_ROUNDS) {
+        finalAnswer = assistantContent;
+        logger.warn("已达到最大反思轮次，使用当前回答作为最终输出。");
+        break;
+      }
+
+      const toolUsage = summarizeToolUsage(toolResults);
+      const reflectionPrompt = buildReflectionPrompt(toolUsage);
+      reflectionRoundsUsed += 1;
+      awaitingReflectionDecision = true;
+      logger.step(`第 ${iterations} 轮未调用工具，进入反思阶段。`);
+      logger.info(
+        `工具统计: 总 ${toolUsage.totalCalls} 次 | 成功 ${toolUsage.successfulCalls} 次 | 失败 ${toolUsage.failedCalls} 次`,
+      );
+      logger.info(`反思提示: ${summarizeText(reflectionPrompt)}`);
+      messages = appendUserMessage(messages, reflectionPrompt);
+      continue;
     }
 
     const currentResults = await dispatchToolCalls(registry, toolCalls);
