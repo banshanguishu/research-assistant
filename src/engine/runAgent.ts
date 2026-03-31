@@ -13,6 +13,10 @@ import {
   REFLECTION_FAIL,
   REFLECTION_PASS,
 } from "../prompts/reflectionPrompt.js";
+import {
+  createResearchPlan,
+  formatResearchPlanForContext,
+} from "./planner.js";
 import { buildSystemPrompt } from "../prompts/systemPrompt.js";
 import { parseReflectionResult } from "./reflection.js";
 import { summarizeToolUsage } from "./toolUsageSummary.js";
@@ -36,7 +40,7 @@ export interface RunAgentResult {
   toolResults: ToolExecutionResult[];
 }
 
-const DEFAULT_MAX_ITERATIONS = 6;
+const DEFAULT_MAX_ITERATIONS = 10;
 const MAX_REFLECTION_ROUNDS = 3;
 
 function formatToolResult(result: ToolExecutionResult): string {
@@ -76,6 +80,25 @@ export async function runAgent(
   let awaitingReflectionDecision = false;
 
   logger.step(`开始运行研究任务，主题: ${options.topic}`);
+  logger.step("进入 planning 阶段，准备提取研究维度和关键词。");
+
+  const researchPlan = await createResearchPlan(llmClient, options.topic);
+  const planningContext = formatResearchPlanForContext(researchPlan);
+
+  logger.info(
+    `planning 完成，共提取 ${researchPlan.dimensions.length} 个研究维度。`,
+  );
+
+  for (const [index, dimension] of researchPlan.dimensions.entries()) {
+    logger.info(
+      `规划维度 ${index + 1} -> ${dimension.name} | 关键词: ${dimension.keywords.join(
+        "、",
+      )}`,
+    );
+  }
+
+  messages = appendUserMessage(messages, planningContext);
+  logger.step("planning 结果已写入上下文，进入正式研究循环。");
 
   while (iterations < maxIterations) {
     iterations += 1;

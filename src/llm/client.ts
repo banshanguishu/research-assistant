@@ -23,6 +23,10 @@ export interface CallModelOptions {
 export type ChatCompletionResponse =
   OpenAI.Chat.Completions.ChatCompletion;
 
+export interface LlmClient {
+  callModel: (options: CallModelOptions) => Promise<ChatCompletionResponse>;
+}
+
 function createOpenAiClient(config: ResolvedModelConfig): OpenAI {
   return new OpenAI({
     apiKey: config.apiKey,
@@ -70,7 +74,9 @@ export async function callModel(
   return requestChatCompletion(client, config, options);
 }
 
-export function createLlmClient(config: ResolvedModelConfig = assertModelConfig()) {
+export function createLlmClient(
+  config: ResolvedModelConfig = assertModelConfig(),
+): LlmClient {
   const client = createOpenAiClient(config);
 
   return {
