@@ -2,29 +2,23 @@
 [STEP] 第 1 轮开始，准备请求模型。
 [INFO] 第 1 轮模型响应已返回。
 [INFO] 第 1 轮模型决定调用 1 个工具。
-[INFO] 工具调用 -> search_web | 参数摘要: {"query": "2025年中国低空经济商业落地现状 主要场景 政策 企业进展", "maxResults": 5, "topic": "general"}
-[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "2025年中国低空经济商业落地现状 主要场景 政策 企业进展", "maxResults": 5, "topic": "general", "results": [ { "title": "2025年中国低空经济行业发展现状及趋势分析报告", "url...
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "2025 低空经济 商业落地现状", "maxResults": 8, "topic": "news"}
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "2025 低空经济 商业落地现状", "maxResults": 8, "topic": "news", "results": [ { "title": "Turning growth into profits remains a challenge ...
 [STEP] 第 1 轮结束，已写回工具 observation，准备进入下一轮。
 [STEP] 第 2 轮开始，准备请求模型。
 [INFO] 第 2 轮模型响应已返回。
-[INFO] 第 2 轮模型决定调用 3 个工具。
-[INFO] 工具调用 -> fetch_page_content | 参数摘要: {"url": "https://pdf.dfcfw.com/pdf/H3_AP202506281699113105_1.pdf", "format": "markdown", "extractDepth": "advanced"}
-[INFO] 工具调用 -> fetch_page_content | 参数摘要: {"url": "http://www.news.cn/info/20250813/01e3f71d8b884bb5aa6bfaa4a3f840ee/20250813e642284144084df4bc1c50db199b3bb3_275281ee6199b0442ea760200c0cea32cc.pdf", "fo...
-[INFO] 工具调用 -> fetch_page_content | 参数摘要: {"url": "https://www.etbbs.com/report/46.shtml", "format": "markdown", "extractDepth": "advanced"}
-[INFO] 工具结果 <- fetch_page_content 成功 | 内容摘要: { "provider": "tavily", "url": "https://pdf.dfcfw.com/pdf/H3_AP202506281699113105_1.pdf", "title": "[PDF] 2025 - 中国低空经济市场现状报告", "content": "1 2025 中国低空经济市场现状报告 ...
-[WARN] 工具结果 <- fetch_page_content 失败 | 错误: An unexpected error occurred while making the request. Error: AxiosError: stream has been aborted
-[INFO] 工具结果 <- fetch_page_content 成功 | 内容摘要: { "provider": "tavily", "url": "https://www.etbbs.com/report/46.shtml", "title": "2025年中国低空经济行业发展现状及趋势分析报告", "content": "* [头条](/news/hot/)\n* [低空经济](/news/econ...
+[INFO] 第 2 轮模型决定调用 1 个工具。
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "2025 中国 低空经济 商业落地 政策 试点", "maxResults": 5, "topic": "news"}
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "2025 中国 低空经济 商业落地 政策 试点", "maxResults": 5, "topic": "news", "results": [ { "title": "China sends radar mapping and GNSS augmen...
 [STEP] 第 2 轮结束，已写回工具 observation，准备进入下一轮。
 [STEP] 第 3 轮开始，准备请求模型。
 [INFO] 第 3 轮模型响应已返回。
-[INFO] 第 3 轮模型未调用工具，回复摘要: # 2025年中国低空经济商业落地现状研究报告 ## 引言 低空经济是以低空空域（通常指垂直高度1000米以下，可延伸至3000米）为依托，以民用有人/无人驾驶航空器为核心载体，覆盖研发制造、运营服务、基础设施全链条的综合性经济形态。2023年中央经济工作会议首次将其列为战略性新兴产业，2024年正式写入政府工作报告，...
-[STEP] 第 3 轮触发自检，要求模型确认信息是否充分。
-[INFO] 触发原因: 本轮之前存在失败的工具调用，信息链可能不完整。
-[INFO] 自检提示: 请先进行一次自检。 当前状态：search_web 成功 1 次，fetch_page_content 成功 2 次，失败工具调用 1 次。 当前发现的潜在问题： 1. 本轮之前存在失败的工具调用，信息链可能不完整。 如果这些问题会影响正式研究结论，请继续调用合适的工具补充信息；如果不会影响，请明确说明证据边界和不确定...
+[INFO] 第 3 轮模型决定调用 1 个工具。
+[INFO] 工具调用 -> fetch_page_content | 参数摘要: {"url": "https://www.ynetnews.com/business/article/r1ejrlnowx", "format": "markdown", "extractDepth": "basic"}
+[INFO] 工具结果 <- fetch_page_content 成功 | 内容摘要: { "provider": "tavily", "url": "https://www.ynetnews.com/business/article/r1ejrlnowx", "title": "Israeli startup AIR secures $1 billion in orders for personal e...
+[STEP] 第 3 轮结束，已写回工具 observation，准备进入下一轮。
 [STEP] 第 4 轮开始，准备请求模型。
 [INFO] 第 4 轮模型响应已返回。
-[INFO] 第 4 轮模型未调用工具，回复摘要: ### 自检报告 1. **工具调用复盘** - 初始搜索：调用`search_web`获取了5条相关搜索结果，覆盖了2025年低空经济的政策、市场规模、应用场景、企业进展等核心维度，为后续分析提供了基础素材。 - 成功提取内容： 1. 调用`fetch_page_content`获取嘉世咨询《2025中国低空经济市场...
-[STEP] 第 4 轮触发自检，要求模型确认信息是否充分。
-[INFO] 触发原因: 本轮之前存在失败的工具调用，信息链可能不完整。
-[INFO] 自检提示: 请先进行一次自检。 当前状态：search_web 成功 1 次，fetch_page_content 成功 2 次，失败工具调用 1 次。 当前发现的潜在问题： 1. 本轮之前存在失败的工具调用，信息链可能不完整。 如果这些问题会影响正式研究结论，请继续调用合适的工具补充信息；如果不会影响，请明确说明证据边界和不确定...
-[STEP] 第 5 轮开始，准备请求模型。
+[INFO] 第 4 轮模型未调用工具，回复摘要: # 2025年低空经济商业落地现状分析 ## 引言 低空经济，尤其是以电动垂直起降飞行器（eVTOL）为代表的城市空中交通和无人货运，近年成为全球航空与科技领域投资热点。2025年是低空经济从技术验证向规模化商业落地推进的关键节点，本文结合公开信息对其落地现状进行梳理分析。 ## 一、政策与空域开放进展 目前公开信息中...
+[STEP] 第 4 轮结束，模型已给出最终回答。
+[STEP] 运行结束，共执行 4 轮。

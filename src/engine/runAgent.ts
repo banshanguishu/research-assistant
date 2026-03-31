@@ -8,7 +8,10 @@ import {
   type MessageList,
 } from "../memory/messageManager.js";
 import { buildSystemPrompt } from "../prompts/systemPrompt.js";
-import { evaluateReflectionNeed } from "./stopConditions.js";
+import {
+  evaluateReflectionNeed,
+  type ToolUsageSummary,
+} from "./stopConditions.js";
 import { dispatchToolCalls } from "../tools/dispatchToolCall.js";
 import { createDefaultToolRegistry } from "../tools/registry.js";
 import type { ToolExecutionResult } from "../tools/types.js";
@@ -52,16 +55,25 @@ function getAssistantContent(content: string | null): string {
 
 function buildReflectionPrompt(
   reasons: string[],
-  successfulSearchCount: number,
-  successfulFetchCount: number,
-  failedToolCount: number,
+  toolUsage: ToolUsageSummary,
 ): string {
+  const toolSummaryLines = Object.entries(toolUsage.byTool).map(
+    ([toolName, stat]) =>
+      `- ${toolName}: 共 ${stat.total} 次，成功 ${stat.successful} 次，失败 ${stat.failed} 次`,
+  );
+
   return [
     "请先进行一次自检。",
-    `当前状态：search_web 成功 ${successfulSearchCount} 次，fetch_page_content 成功 ${successfulFetchCount} 次，失败工具调用 ${failedToolCount} 次。`,
-    "当前发现的潜在问题：",
+    "以下是程序统计到的工具使用情况，你可以把它当作客观事实参考：",
+    `- 工具总调用次数: ${toolUsage.totalCalls}`,
+    `- 工具成功次数: ${toolUsage.successfulCalls}`,
+    `- 工具失败次数: ${toolUsage.failedCalls}`,
+    ...(toolSummaryLines.length > 0 ? toolSummaryLines : ["- 暂无工具调用记录"]),
+    "以下是需要你重点检查的点：",
     ...reasons.map((reason, index) => `${index + 1}. ${reason}`),
-    "如果这些问题会影响正式研究结论，请继续调用合适的工具补充信息；如果不会影响，请明确说明证据边界和不确定性，然后给出最终回答。",
+    "请结合以上统计信息，以及你已经看到的全部 tool observation，自主判断当前证据是否足够支撑正式研究结论。",
+    "如果证据不足，请继续调用合适的工具；如果证据已经足够，请明确说明证据边界和不确定性，然后给出最终回答。",
+    "不要只重复自检过程本身，而要明确做出下一步决策。",
   ].join("\n");
 }
 
@@ -151,15 +163,16 @@ export async function runAgent(
         reflectionRoundsUsed += 1;
         const reflectionPrompt = buildReflectionPrompt(
           reflectionDecision.reasons,
-          reflectionDecision.successfulSearchCount,
-          reflectionDecision.successfulFetchCount,
-          reflectionDecision.failedToolCount,
+          reflectionDecision.toolUsage,
         );
         logger.step(`第 ${iterations} 轮触发自检，要求模型确认信息是否充分。`);
         logger.info(
           `触发原因: ${reflectionDecision.reasons
             .map((reason) => summarizeText(reason, 80))
             .join(" | ")}`,
+        );
+        logger.info(
+          `工具统计: 总 ${reflectionDecision.toolUsage.totalCalls} 次 | 成功 ${reflectionDecision.toolUsage.successfulCalls} 次 | 失败 ${reflectionDecision.toolUsage.failedCalls} 次`,
         );
         logger.info(`自检提示: ${summarizeText(reflectionPrompt)}`);
         messages = appendUserMessage(messages, reflectionPrompt);

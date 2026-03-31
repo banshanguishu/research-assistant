@@ -1,62 +1,85 @@
 import type { ToolExecutionResult } from "../tools/types.js";
 
+export interface ToolUsageStat {
+  total: number;
+  successful: number;
+  failed: number;
+}
+
+export interface ToolUsageSummary {
+  totalCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  byTool: Record<string, ToolUsageStat>;
+}
+
 export interface ReflectionDecision {
   shouldReflect: boolean;
   reasons: string[];
-  successfulSearchCount: number;
-  successfulFetchCount: number;
-  failedToolCount: number;
+  toolUsage: ToolUsageSummary;
 }
 
-function countSuccessfulToolResults(
+function buildToolUsageSummary(
   toolResults: ToolExecutionResult[],
-  toolName: string,
-): number {
-  return toolResults.filter(
-    (toolResult) => toolResult.success && toolResult.toolName === toolName,
-  ).length;
-}
+): ToolUsageSummary {
+  const byTool: Record<string, ToolUsageStat> = {};
+  let successfulCalls = 0;
+  let failedCalls = 0;
 
-function countFailedToolResults(toolResults: ToolExecutionResult[]): number {
-  return toolResults.filter((toolResult) => !toolResult.success).length;
+  for (const toolResult of toolResults) {
+    const currentStat = byTool[toolResult.toolName] ?? {
+      total: 0,
+      successful: 0,
+      failed: 0,
+    };
+
+    currentStat.total += 1;
+
+    if (toolResult.success) {
+      currentStat.successful += 1;
+      successfulCalls += 1;
+    } else {
+      currentStat.failed += 1;
+      failedCalls += 1;
+    }
+
+    byTool[toolResult.toolName] = currentStat;
+  }
+
+  return {
+    totalCalls: toolResults.length,
+    successfulCalls,
+    failedCalls,
+    byTool,
+  };
 }
 
 export function evaluateReflectionNeed(
   toolResults: ToolExecutionResult[],
   assistantContent: string,
 ): ReflectionDecision {
-  const successfulSearchCount = countSuccessfulToolResults(
-    toolResults,
-    "search_web",
-  );
-  const successfulFetchCount = countSuccessfulToolResults(
-    toolResults,
-    "fetch_page_content",
-  );
-  const failedToolCount = countFailedToolResults(toolResults);
+  const toolUsage = buildToolUsageSummary(toolResults);
   const reasons: string[] = [];
 
-  if (successfulSearchCount > 0 && successfulFetchCount === 0) {
-    reasons.push("已经完成搜索，但尚未读取任何关键正文页面。");
+  if (toolUsage.totalCalls > 0) {
+    reasons.push("当前已经积累了工具 observation，请先基于这些事实进行一次自检。");
   }
 
-  if (failedToolCount > 0) {
-    reasons.push("本轮之前存在失败的工具调用，信息链可能不完整。");
+  if (toolUsage.failedCalls > 0) {
+    reasons.push("之前存在失败的工具调用，请评估这些缺口是否影响正式研究结论。");
   }
 
-  if (toolResults.length > 0 && assistantContent.trim().length < 120) {
-    reasons.push("当前总结过短，可能不足以支撑正式研究结论。");
+  if (toolUsage.totalCalls > 0 && assistantContent.trim().length < 120) {
+    reasons.push("当前回答较短，请确认是否已经覆盖足够证据后再结束。");
   }
 
-  if (toolResults.length > 0 && assistantContent.trim().length === 0) {
+  if (toolUsage.totalCalls > 0 && assistantContent.trim().length === 0) {
     reasons.push("模型当前没有给出可见的结论文本。");
   }
 
   return {
-    shouldReflect: reasons.length > 0,
+    shouldReflect: toolUsage.totalCalls > 0 && reasons.length > 0,
     reasons,
-    successfulSearchCount,
-    successfulFetchCount,
-    failedToolCount,
+    toolUsage,
   };
 }
