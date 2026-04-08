@@ -102,7 +102,7 @@ export async function runAgent(
 
   while (iterations < maxIterations) {
     iterations += 1;
-    logger.step(`第 ${iterations} 轮开始，准备请求模型。`);
+    logger.step(`\n第 ${iterations} 轮开始，准备请求模型。`);
 
     const response = await llmClient.callModel({
       messages,

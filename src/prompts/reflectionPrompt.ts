@@ -4,6 +4,8 @@ export const REFLECTION_PASS = "PASS";
 export const REFLECTION_FAIL = "FAIL";
 
 export function buildReflectionPrompt(toolUsage: ToolUsageSummary): string {
+  const fetchPageContentStat = toolUsage.byTool.fetch_page_content;
+  const successfulFetchCount = fetchPageContentStat?.successful ?? 0;
   const toolSummaryLines = Object.entries(toolUsage.byTool).map(
     ([toolName, stat]) =>
       `- ${toolName}: 共 ${stat.total} 次，成功 ${stat.successful} 次，失败 ${stat.failed} 次`,
@@ -15,8 +17,11 @@ export function buildReflectionPrompt(toolUsage: ToolUsageSummary): string {
     `- 工具总调用次数: ${toolUsage.totalCalls}`,
     `- 工具成功次数: ${toolUsage.successfulCalls}`,
     `- 工具失败次数: ${toolUsage.failedCalls}`,
+    `- fetch_page_content 成功次数: ${successfulFetchCount}`,
     ...(toolSummaryLines.length > 0 ? toolSummaryLines : ["- 暂无工具调用记录"]),
     "请结合以上统计信息，以及你已经看到的全部 tool observation，自主判断当前证据是否足够支撑正式研究结论。",
+    "重要通过条件：如果 fetch_page_content 的成功次数仍然为 0，则你不能给出 REFLECTION_STATUS: PASS。",
+    "在这种情况下，你应优先从已有 search_web 结果中选择 1 到 2 个你认为最可信、最关键的来源，调用 fetch_page_content 读取正文后，再决定是否通过反思。",
     `如果你判断证据已经足够，请严格按以下格式回复：`,
     `REFLECTION_STATUS: ${REFLECTION_PASS}`,
     "FINAL_ANSWER:",

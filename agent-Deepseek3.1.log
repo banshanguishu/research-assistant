@@ -1,0 +1,58 @@
+﻿[STEP] 开始运行研究任务，主题: 分析 2025 世界大模型舞台，谁是未来的主流模型
+[STEP] 进入 planning 阶段，准备提取研究维度和关键词。
+[INFO] planning 完成，共提取 3 个研究维度。
+[INFO] 规划维度 1 -> 市场竞争格局 | 关键词: 2025 大模型竞争格局、主流 LLM 市场份额、领先 AI 模型预测
+[INFO] 规划维度 2 -> 技术性能与趋势 | 关键词: 2025 大模型性能排名、LLM 基准测试对比、大模型技术发展趋势
+[INFO] 规划维度 3 -> 应用与生态 | 关键词: 2025 企业 AI 采用、大模型 API 使用统计、LLM 开发者生态
+[STEP] planning 结果已写入上下文，进入正式研究循环。
+[STEP] 
+第 1 轮开始，准备请求模型。
+[INFO] 第 1 轮模型响应已返回。
+[INFO] 第 1 轮模型决定调用 2 个工具。
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "2025 大模型竞争格局 主流 LLM 市场份额", "maxResults": 10}
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "领先 AI 模型预测 2025 GPT Claude Gemini", "maxResults": 10}
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "2025 大模型竞争格局 主流 LLM 市场份额", "maxResults": 10, "topic": "general", "results": [ { "title": "2025年大模型市场格局：全球领军者、盈利模式与AI发展趋势", "ur...
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "领先 AI 模型预测 2025 GPT Claude Gemini", "maxResults": 10, "topic": "general", "results": [ { "title": "一张全家福| 2025年AI大模型年度盘点：谁在突围？...
+[STEP] 第 1 轮结束，已写回工具 observation，准备进入下一轮。
+[STEP] 
+第 2 轮开始，准备请求模型。
+[INFO] 第 2 轮模型响应已返回。
+[INFO] 第 2 轮模型决定调用 2 个工具。
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "2025 大模型性能排名 LLM 基准测试对比", "maxResults": 10}
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "大模型技术发展趋势 2025 多模态 Agent", "maxResults": 10}
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "2025 大模型性能排名 LLM 基准测试对比", "maxResults": 10, "topic": "general", "results": [ { "title": "2025 年最全面的LLM 架构技术解析【长文】 - QQ", "url"...
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "大模型技术发展趋势 2025 多模态 Agent", "maxResults": 10, "topic": "general", "results": [ { "title": "07_大模型未来趋势：2025年AI技术前沿展望", "url": "h...
+[STEP] 第 2 轮结束，已写回工具 observation，准备进入下一轮。
+[STEP] 
+第 3 轮开始，准备请求模型。
+[INFO] 第 3 轮模型响应已返回。
+[INFO] 第 3 轮模型决定调用 2 个工具。
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "2025 企业 AI 采用 大模型 API 使用统计", "maxResults": 10}
+[INFO] 工具调用 -> search_web | 参数摘要: {"query": "LLM 开发者生态 2025 开源模型 闭源模型", "maxResults": 10}
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "2025 企业 AI 采用 大模型 API 使用统计", "maxResults": 10, "topic": "general", "results": [ { "title": "中国企业调用大模型日均超10万亿Tokens，阿里通义份额第一", ...
+[INFO] 工具结果 <- search_web 成功 | 内容摘要: { "provider": "tavily", "query": "LLM 开发者生态 2025 开源模型 闭源模型", "maxResults": 10, "topic": "general", "results": [ { "title": "2025大模型生态全景：从100万亿Token看开源与闭源的博弈与融合"...
+[STEP] 第 3 轮结束，已写回工具 observation，准备进入下一轮。
+[STEP] 
+第 4 轮开始，准备请求模型。
+[INFO] 第 4 轮模型响应已返回。
+[INFO] 第 4 轮模型决定调用 3 个工具。
+[INFO] 工具调用 -> fetch_page_content | 参数摘要: {"url": "https://powerdrill.ai/zh/blog/llm-market-landscape", "format": "markdown"}
+[INFO] 工具调用 -> fetch_page_content | 参数摘要: {"url": "https://www.gminsights.com/zh/industry-analysis/enterprise-llm-market", "format": "markdown"}
+[INFO] 工具调用 -> fetch_page_content | 参数摘要: {"url": "https://stcn.com/article/detail/3314916.html", "format": "markdown"}
+[INFO] 工具结果 <- fetch_page_content 成功 | 内容摘要: { "provider": "tavily", "url": "https://powerdrill.ai/zh/blog/llm-market-landscape", "title": "2025年大模型市场格局：全球领军者、盈利模式与AI发展趋势", "content": "特性\n\n博客\n\n文档\n\n计费...
+[INFO] 工具结果 <- fetch_page_content 成功 | 内容摘要: { "provider": "tavily", "url": "https://www.gminsights.com/zh/industry-analysis/enterprise-llm-market", "title": "企业LLM市场规模与份额统计报告（2025-2034年）", "content": "[![...
+[INFO] 工具结果 <- fetch_page_content 成功 | 内容摘要: { "provider": "tavily", "url": "https://stcn.com/article/detail/3314916.html", "title": "中国企业调用大模型日均超10万亿Tokens，阿里通义份额第一", "content": "[![](https://static-web.s...
+[STEP] 第 4 轮结束，已写回工具 observation，准备进入下一轮。
+[STEP] 
+第 5 轮开始，准备请求模型。
+[INFO] 第 5 轮模型响应已返回。
+[INFO] 第 5 轮模型未调用工具，回复摘要: 基于收集到的丰富资料，我现在可以为您撰写一份全面的分析报告。 --- # 2025年世界大模型舞台分析：谁是未来的主流模型？ ## 引言 2025年，全球大模型市场正经历一场深刻的变革。从OpenAI、Anthropic、Google等美国巨头的持续领跑，到中国大模型的强势崛起，整个产业格局正在重塑。本报告将从市场竞争...
+[STEP] 第 5 轮未调用工具，进入反思阶段。
+[INFO] 工具统计: 总 9 次 | 成功 9 次 | 失败 0 次
+[INFO] 反思提示: 请先进行一次自检。 以下是程序统计到的工具使用情况，你可以把它当作客观事实参考： - 工具总调用次数: 9 - 工具成功次数: 9 - 工具失败次数: 0 - fetch_page_content 成功次数: 3 - search_web: 共 6 次，成功 6 次，失败 0 次 - fetch_page_conten...
+[STEP] 
+第 6 轮开始，准备请求模型。
+[INFO] 第 6 轮模型响应已返回。
+[INFO] 第 6 轮模型未调用工具，回复摘要: REFLECTION_STATUS: PASS FINAL ANSWWER: # 2025年世界大模型舞台分析：谁是未来的主流模型？ ## 引言 2025年，全球大模型市场正经历一场深刻的变革。从OpenAI、Anthropic、Google等美国巨头的持续领跑，到中国大模型的强势崛起，整个产业格局正在重塑。本报告基于...
+[STEP] 第 6 轮反思通过，模型确认可以结束。
+[STEP] 运行结束，共执行 6 轮。
